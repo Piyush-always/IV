@@ -1,112 +1,334 @@
 <script type="text/javascript">
+
+
         var gk_isXlsx = false;
+
+
         var gk_xlsxFileLookup = {};
+
+
         var gk_fileData = {};
+
+
         function filledCell(cell) {
+
+
           return cell !== '' && cell != null;
+
+
         }
+
+
         function loadFileData(filename) {
+
+
         if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+
+
             try {
+
+
                 var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+
+
                 var firstSheetName = workbook.SheetNames[0];
+
+
                 var worksheet = workbook.Sheets[firstSheetName];
 
+
+
+
+
                 // Convert sheet to JSON to filter blank rows
+
+
                 var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+
+
                 // Filter out blank rows (rows where all cells are empty, null, or undefined)
+
+
                 var filteredData = jsonData.filter(row => row.some(filledCell));
 
+
+
+
+
                 // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+
+
                 var headerRowIndex = filteredData.findIndex((row, index) =>
+
+
                   row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+
+
                 );
+
+
                 // Fallback
+
+
                 if (headerRowIndex === -1 || headerRowIndex > 25) {
+
+
                   headerRowIndex = 0;
+
+
                 }
 
+
+
+
+
                 // Convert filtered JSON back to CSV
+
+
                 var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+
+
                 csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+
+
                 return csv;
+
+
             } catch (e) {
+
+
                 console.error(e);
+
+
                 return "";
+
+
             }
+
+
         }
+
+
         return gk_fileData[filename] || "";
+
+
         }
+
+
         </script><!DOCTYPE html>
+
+
 <html lang="en">
+
+
 <head>
+
+
   <meta charset="UTF-8">
+
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+
   <title>Under Construction</title>
+
+
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400&display=swap" rel="stylesheet">
+
+
   <style>
+
+
     body {
+
+
       margin: 0;
+
+
       padding: 0;
+
+
       height: 100vh;
+
+
       display: flex;
+
+
       justify-content: center;
+
+
       align-items: center;
+
+
       background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+
+
       font-family: 'Roboto', sans-serif;
+
+
       color: #333;
+
+
       overflow: hidden;
+
+
     }
+
+
+
+
 
     .container {
+
+
       text-align: center;
+
+
       opacity: 0;
+
+
       animation: fadeIn 2s ease-in forwards;
+
+
     }
+
+
+
+
 
     h1 {
+
+
       font-size: 2.5rem;
+
+
       font-weight: 300;
+
+
       margin-bottom: 1rem;
+
+
       letter-spacing: 2px;
+
+
     }
+
+
+
+
 
     p {
+
+
       font-size: 1.2rem;
+
+
       font-weight: 400;
+
+
       margin-bottom: 2rem;
+
+
       color: #555;
+
+
     }
+
+
+
+
 
     @keyframes fadeIn {
+
+
       0% { opacity: 0; transform: translateY(20px); }
+
+
       100% { opacity: 1; transform: translateY(0); }
+
+
     }
+
+
+
+
 
     @media (max-width: 600px) {
+
+
       h1 {
+
+
         font-size: 1.8rem;
+
+
       }
+
+
       p {
+
+
         font-size: 1rem;
+
+
       }
+
+
     }
+
+
   </style>
+
+
 </head>
+
+
 <body>
+
+
   <div class="container">
+
+
     <h1>We're Building Something Amazing</h1>
+
+
     <p>Our site is under construction. Stay tuned!</p>
+
+
   </div>
 
+
+
+
+
   <script>
+
+
     // Optional: Add a slight delay to ensure smooth animation
+
+
     document.addEventListener('DOMContentLoaded', () => {
+
+
       document.querySelector('.container').style.opacity = '0';
+
+
       setTimeout(() => {
+
+
         document.querySelector('.container').style.opacity = '1';
+
+
       }, 100);
+
+
     });
+
+
   </script>
+
+
 </body>
+
+
 </html>
