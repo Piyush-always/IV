@@ -1,0 +1,1310 @@
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sevak - Dispatch Dashboard</title>
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Mapbox GL JS -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    <!-- Mapbox Geocoding -->
+    <!-- <script src="https://api.mapbox.com/sdk/js/2.15.0/mapbox-sdk.min.js"></script> -->
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.min.js"></script>
+    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.0/mapbox-gl-geocoder.css">
+    
+    <style>
+        /* BASE STYLES */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #e0e7ff; min-height: 100vh; display: flex; flex-direction: column; }
+        main { flex-grow: 1; }
+        .hidden { display: none !important; }
+
+        /* NAVIGATION */
+        nav { background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 1000; }
+        .nav-container { max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; height: 64px; }
+        .logo-text { font-size: 28px; font-weight: 700; color: #111827; letter-spacing: 1px; text-transform: uppercase; }
+        .logout-btn { background: #ef4444; color: white; padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; }
+
+        /* HERO/MAIN CONTAINER */
+        .hero { padding: 0 20px; max-width: 100%; height: calc(100vh - 64px); margin: 0 auto; display: flex; align-items: center; justify-content: flex-start; background-image: url('ambulance.jpg'); background-size: cover; background-position: center; position: relative; }
+        .hero::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); z-index: 1; }
+        .hero-content { max-width: 1200px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; position: relative; z-index: 10; align-items: flex-start; }
+        .hero-text-box { color: white; max-width: 600px; text-align: left; }
+        .hero-text-box h1 { font-size: 52px; font-weight: 900; line-height: 1.1; margin-bottom: 20px; }
+        .hero-text-box .tagline { font-size: 24px; font-weight: 600; color: white; margin-bottom: 30px; }
+
+        /* VIEW CONTAINER (for secondary/status views) */
+        .view-container { width: 100%; max-width: 450px; padding: 30px; background: rgba(255, 255, 255, 0.95); border-radius: 12px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5); color: #1f2937; text-align: center; }
+
+        /* GENERAL BUTTON STYLING */
+        .btn-primary { 
+            color: white; 
+            padding: 12px 24px; 
+            border: none; 
+            border-radius: 12px; 
+            font-size: 18px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            width: 100%; 
+            transition: transform 0.3s, box-shadow 0.3s; 
+            margin-top: 15px; 
+        }
+
+        /* WHITE BUTTON STYLE (Onboard) */
+        #onboardBtn {
+            background: white; 
+            color: black; 
+            border: 1px solid #ccc;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        #onboardBtn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+            background-color: #f3f4f6; 
+        }
+        
+        /* Blue Button (used for finish/standby) */
+        .btn-primary-blue {
+            background: linear-gradient(to right, #2563eb, #4f46e5);
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+        }
+        .btn-primary-blue:hover { 
+            transform: scale(1.02); 
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5); 
+        }
+
+
+        /* DASHBOARD TITLES */
+        #waiting-view h2 { font-size: 28px; margin-bottom: 15px; color: white; }
+        #searching-view h2, #enroute-view h2, #thanks-view h2 { font-size: 28px; margin-bottom: 15px; color: #ef4444; }
+        #waiting-view p, #searching-view p, #enroute-view p, #thanks-view p { font-size: 18px; margin-bottom: 20px; font-weight: 500; }
+        
+        /* SPINNER */
+        .spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 40px; height: 40px; border-radius: 50%; border-left-color: #2563eb; animation: spin 1s ease infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* EMERGENCY BUTTON STYLING (The 6 options) */
+        #waiting-view { max-width: 450px; width: 100%; padding: 20px; text-align: left; }
+
+        #emergency-options-grid {
+            display: flex;
+            flex-wrap: wrap; 
+            gap: 10px; 
+            background: rgba(255, 255, 255, 0.1); 
+            padding: 15px 0; 
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .emergency-btn {
+            flex-basis: calc(33.333% - 7px); 
+            min-width: 100px; 
+            flex-grow: 1; 
+            background-color: white; 
+            color: black; 
+            padding: 10px 5px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+            transition: background-color 0.2s, box-shadow 0.2s, transform 0.2s;
+            line-height: 1.2; 
+        }
+        .emergency-btn i {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 18px;
+        }
+
+        /* Selection State (Red) */
+        .emergency-btn.selected {
+            background-color: #ef4444; 
+            color: white;
+            border-color: #ef4444;
+            box-shadow: 0 0 5px rgba(239, 68, 68, 0.5);
+        }
+        
+        /* Hover state for non-selected buttons */
+        .emergency-btn:hover:not(.selected) {
+            background-color: #e5e7eb; 
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        /* ENROUTE VIEW IMPROVEMENTS */
+        .hospital-details { text-align: left; margin-bottom: 20px; padding: 15px; border: 2px solid #ef4444; border-radius: 8px; background: #fff5f5; }
+        .hospital-details p { margin: 5px 0; font-size: 16px; color: #4b5563; }
+        .hospital-details strong { color: #111827; }
+        .critical-info { font-size: 20px !important; font-weight: 700 !important; color: #ef4444; margin: 10px 0 !important; }
+        #mapbox-placeholder { height: 180px; width: 100%; background-color: #ccc; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #1f2937; font-weight: 600; margin-top: 15px; font-size: 14px; box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1); }
+        .turn-instructions { margin-top: 10px; font-weight: 700; color: #2563eb; font-size: 16px; }
+
+        /* MAP AND NAVIGATION STYLES */
+        .hospital-list {
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .hospital-item {
+            padding: 10px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .hospital-item:hover {
+            background-color: #f3f4f6;
+        }
+        
+        .hospital-item.selected {
+            border-color: #2563eb;
+            background-color: #eff6ff;
+        }
+        
+        .hospital-item h3 {
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+        
+        .hospital-item p {
+            font-size: 14px;
+            color: #6b7280;
+            margin: 2px 0;
+        }
+        
+        .mapboxgl-popup {
+            max-width: 200px;
+        }
+        
+        .cancel-search {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            border: 1px solid #ef4444;
+            color: #ef4444;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            z-index: 1;
+        }
+        
+        .cancel-search:hover {
+            background: #fef2f2;
+        }
+
+        /* THANKS VIEW IMPROVEMENTS */
+        #performance-metrics { background: #f0fdf4; border: 1px solid #10b981; border-radius: 8px; padding: 15px; margin-top: 15px; }
+        #performance-metrics p { margin: 5px 0; font-size: 16px; color: #065f46; }
+
+
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <div class="logo">
+                 <a href="index.html" style="text-decoration: none;"><span class="logo-text">SEVAK</span></a>
+            </div>
+            <div class="nav-menu">
+                <button class="logout-btn" id="logoutBtn">Logout</button>
+            </div>
+        </div>
+    </nav>
+    
+    <main>
+        <section class="hero">
+            <div class="hero-content">
+                
+                <!-- Dashboard Content Container -->
+                <div id="dashboard-main-view">
+                    <div class="hero-text-box">
+                        <h1 id="dashboard-title">EMERGENCY PATIENT PICKUP</h1>
+                        <p class="tagline" id="dashboard-tagline"></p> 
+                    </div>
+
+                    <!-- 1. Waiting for Patient View -->
+                    <div id="waiting-view">
+                        <h2>Select Emergency Type</h2>
+                        
+                        <!-- EMERGENCY BUTTON GRID with Icons -->
+                        <div id="emergency-options-grid">
+                            <button class="emergency-btn selected" value="Accident" aria-label="Select Accident or Trauma">
+                                <i class="fas fa-bone"></i>Accident
+                            </button>
+                            <button class="emergency-btn" value="Stampede" aria-label="Select Mass Casualty or Stampede">
+                                <i class="fas fa-user-friends"></i>Stampede
+                            </button>
+                            <button class="emergency-btn" value="Fire" aria-label="Select Fire or Severe Burns">
+                                <i class="fas fa-fire-extinguisher"></i>Fire/Burns
+                            </button>
+                            <button class="emergency-btn" value="Cardiac" aria-label="Select Cardiac Emergency">
+                                <i class="fas fa-heartbeat"></i>Cardiac
+                            </button>
+                            <button class="emergency-btn" value="Stroke" aria-label="Select Stroke or Neurological">
+                                <i class="fas fa-brain"></i>Stroke
+                            </button>
+                            <button class="emergency-btn" value="Pediatric" aria-label="Select Pediatric Emergency">
+                                <i class="fas fa-baby"></i>Pediatric
+                            </button>
+                        </div>
+
+                        <!-- WHITE BUTTON FOR ONBOARD (Action-oriented name) -->
+                        <button class="btn-primary" id="onboardBtn" aria-label="Confirm patient is onboard and begin hospital search">
+                            CONFIRM PATIENT SECURED, ASSIGN HOSPITAL
+                        </button>
+                    </div>
+
+                    <!-- 2. Hospital Searching/Buffer View -->
+                    <div class="view-container hidden" id="searching-view">
+                        <h2>DESTINATION PENDING</h2>
+                        <div class="spinner"></div>
+                        <p>Consulting live bed availability and finding the nearest Trauma Center...</p>
+                        <button class="cancel-search" id="cancelSearchBtn">Cancel Search</button>
+                    </div>
+
+                    <!-- 3. En Route to Hospital View (Enhanced Details) -->
+                    <div class="view-container hidden" id="enroute-view">
+                        <h2>DESTINATION ASSIGNED</h2>
+                        <div class="hospital-details">
+                            <p>Assigned Hospital:</p>
+                            <p class="critical-info">City Trauma Center</p>
+                            <p>Estimated Travel Time:</p>
+                            <p class="critical-info"><span id="hospital-eta">12 minutes</span></p>
+                            <p>Distance: <span id="hospital-distance">5.8 km</span></p>
+                            <p>Hospital Contact: <strong>(555) 555-1234</strong></p>
+                        </div>
+                        
+                        <div id="map" style="height: 300px; width: 100%; border-radius: 8px;"></div>
+                        <div id="turn-by-turn" class="turn-instructions"></div>
+                        <div id="hospital-list" class="hospital-list"></div>
+                        
+                        <button class="btn-primary btn-primary-blue" id="finishJourneyBtn" aria-label="Confirm patient delivery and complete the trip">
+                            PATIENT DELIVERED, COMPLETE TRIP
+                        </button>
+                    </div>
+
+                    <!-- 4. Thanks/Complete View (With Performance Feedback) -->
+                    <div class="view-container hidden" id="thanks-view">
+                        <h2>THANK YOU, SEVAK!</h2>
+                        <p>Patient transfer successful.</p>
+                        
+                        <div id="performance-metrics">
+                            <p>Trip Time: <strong><span id="trip-time">28 min 15 sec</span></strong></p>
+                            <p>Total Trips Today: <strong><span id="trips-today">5</span></strong></p>
+                            <p>Performance Rating: <strong>Excellent ⭐</strong></p>
+                        </div>
+
+                        <button class="btn-primary btn-primary-blue" id="standbyBtn" aria-label="Return to standby for next emergency call">
+                            READY FOR NEXT CALL
+                        </button>
+                    </div>
+
+
+                </div>
+            </div>
+        </section>
+    </main>
+    
+    <script>
+        // --- Configuration ---
+        const MAPBOX_TOKEN = 'pk.eyJ1IjoicGl5dXNoYWx3YXlzIiwiYSI6ImNtZ2Z6bTM5ZDBjZnYyaHNiaTZpbG50aGYifQ.WiQy4yG9X3QzobLdlYRQgQ'; // Replace with your actual token
+        const HOSPITAL_SEARCH_RADIUS = 10000; // 10km in meters
+        
+        // Initialize Mapbox
+        mapboxgl.accessToken = MAPBOX_TOKEN;
+        let map = null;
+        let currentLocationMarker = null;
+        let hospitalMarkers = [];
+        let currentRoute = null;
+        let navigationTimer = null;
+        let watchPositionId = null;
+        
+        // --- Map Functions ---
+        function initializeMap(longitude, latitude) {
+            map = new mapboxgl.Map({
+                container: 'map',
+                style: 'mapbox://styles/mapbox/streets-v11',
+                center: [longitude, latitude],
+                zoom: 13
+            });
+
+            // Add navigation control
+            map.addControl(new mapboxgl.NavigationControl());
+
+            // Add current location marker
+            const el = document.createElement('div');
+            el.className = 'current-location-marker';
+            el.style.backgroundColor = '#2563eb';
+            el.style.width = '15px';
+            el.style.height = '15px';
+            el.style.borderRadius = '50%';
+            el.style.border = '3px solid white';
+            
+            currentLocationMarker = new mapboxgl.Marker(el)
+                .setLngLat([longitude, latitude])
+                .addTo(map);
+        }
+
+        function startLocationTracking() {
+            if ("geolocation" in navigator) {
+                watchPositionId = navigator.geolocation.watchPosition(
+                    position => {
+                        const { longitude, latitude } = position.coords;
+                        
+                        // Update marker and map
+                        if (currentLocationMarker) {
+                            currentLocationMarker.setLngLat([longitude, latitude]);
+                        }
+                        
+                        // If we have a selected hospital, update route
+                        if (currentRoute) {
+                            updateRoute(longitude, latitude);
+                        }
+                    },
+                    error => {
+                        console.error("Error getting location:", error);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 0,
+                        timeout: 5000
+                    }
+                );
+            }
+        }
+
+        function stopLocationTracking() {
+            if (watchPositionId) {
+                navigator.geolocation.clearWatch(watchPositionId);
+                watchPositionId = null;
+            }
+        }
+
+        // Replace the searchNearbyHospitals function with:
+async function searchNearbyHospitals(longitude, latitude) {
+    try {
+        // Forward geocoding API endpoint
+        const response = await fetch(
+            `https://api.mapbox.com/geocoding/v5/mapbox.places/hospital.json?` +
+            `proximity=${longitude},${latitude}&` +
+            `access_token=${MAPBOX_TOKEN}&` +
+            `limit=10&` +
+            `bbox=${longitude-0.1},${latitude-0.1},${longitude+0.1},${latitude+0.1}&` + // Add bounding box
+            `types=poi&` +
+            `country=IN`
+        );
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log("Raw API response:", data); // Debug log
+
+        if (!data.features || data.features.length === 0) {
+            // Fallback to mock data if no hospitals found
+            return [{
+                id: "mock1",
+                name: "City Hospital",
+                coordinates: [longitude + 0.01, latitude + 0.01],
+                address: "123 Medical Center Rd",
+                traumaBeds: 5,
+                waitTime: "15min"
+            }];
+        }
+
+        return data.features.map(hospital => ({
+            id: hospital.id,
+            name: hospital.text || hospital.place_name || "Unknown Hospital",
+            coordinates: hospital.center,
+            address: hospital.place_name || "Address unavailable",
+            traumaBeds: Math.floor(Math.random() * 10),
+            waitTime: Math.floor(Math.random() * 30) + "min"
+        }));
+
+    } catch (error) {
+        console.error("Error searching hospitals:", error);
+        // Always return mock data on error for testing
+        return [{
+            id: "mock1",
+            name: "City Hospital",
+            coordinates: [longitude + 0.01, latitude + 0.01],
+            address: "123 Medical Center Rd",
+            traumaBeds: 5,
+            waitTime: "15min"
+        }];
+    }
+}
+
+async function calculateRoute(start, end) {
+            try {
+                const response = await fetch(
+                    `https://api.mapbox.com/directions/v5/mapbox/driving/` +
+                    `${start[0]},${start[1]};${end[0]},${end[1]}?` +
+                    `steps=true&` +
+                    `geometries=geojson&` +
+                    `access_token=${MAPBOX_TOKEN}`
+                );
+                
+                const data = await response.json();
+                
+                if (data.routes && data.routes[0]) {
+                    return {
+                        route: data.routes[0],
+                        duration: Math.round(data.routes[0].duration / 60), // minutes
+                        distance: (data.routes[0].distance / 1000).toFixed(1) // km
+                    };
+                }
+            } catch (error) {
+                console.error("Error calculating route:", error);
+            }
+            return null;
+        }
+
+        function updateRoute(currentLng, currentLat) {
+            const selectedHospital = document.querySelector('.hospital-item.selected');
+            if (!selectedHospital) return;
+            
+            const hospitalId = selectedHospital.dataset.id;
+            const hospital = hospitalMarkers.find(h => h.id === hospitalId);
+            
+            if (hospital) {
+                calculateRoute(
+                    [currentLng, currentLat],
+                    hospital.coordinates
+                ).then(routeData => {
+                    if (routeData) {
+                        displayRoute(routeData.route);
+                        updateNavigationInfo(routeData);
+                    }
+                });
+            }
+        }
+
+        function displayRoute(route) {
+            // Remove existing route if any
+            if (map.getSource('route')) {
+                map.removeLayer('route');
+                map.removeSource('route');
+            }
+
+            map.addSource('route', {
+                type: 'geojson',
+                data: {
+                    type: 'Feature',
+                    geometry: route.geometry
+                }
+            });
+
+            map.addLayer({
+                id: 'route',
+                type: 'line',
+                source: 'route',
+                paint: {
+                    'line-color': '#2563eb',
+                    'line-width': 4,
+                    'line-opacity': 0.75
+                }
+            });
+        }
+
+        function updateNavigationInfo(routeData) {
+            document.getElementById('hospital-eta').textContent = `${routeData.duration} minutes`;
+            document.getElementById('hospital-distance').textContent = `${routeData.distance} km`;
+            
+            const nextStep = routeData.route.steps[0];
+            if (nextStep) {
+                document.getElementById('turn-by-turn').textContent = 
+                    `NEXT: ${nextStep.maneuver.instruction}`;
+            }
+        }
+
+        function displayHospitalList(hospitals) {
+            const listContainer = document.getElementById('hospital-list');
+            listContainer.innerHTML = '';
+            
+            hospitals.forEach(hospital => {
+                const item = document.createElement('div');
+                item.className = 'hospital-item';
+                item.dataset.id = hospital.id;
+                item.innerHTML = `
+                    <h3>${hospital.name}</h3>
+                    <p>Address: ${hospital.address}</p>
+                    <p>Available Trauma Beds: ${hospital.traumaBeds}</p>
+                    <p>Estimated Wait Time: ${hospital.waitTime}</p>
+                `;
+                
+                item.addEventListener('click', () => selectHospital(hospital));
+                listContainer.appendChild(item);
+            });
+        }
+
+        function selectHospital(hospital) {
+            document.querySelectorAll('.hospital-item').forEach(item => 
+                item.classList.remove('selected'));
+            document.querySelector(`[data-id="${hospital.id}"]`)
+                .classList.add('selected');
+            
+            navigator.geolocation.getCurrentPosition(position => {
+                const { longitude, latitude } = position.coords;
+                updateRoute(longitude, latitude);
+            });
+        }
+
+        // --- DOM Elements ---
+        const logoutBtn = document.getElementById('logoutBtn');
+        const waitingView = document.getElementById('waiting-view');
+        const searchingView = document.getElementById('searching-view');
+        const enrouteView = document.getElementById('enroute-view');
+        const thanksView = document.getElementById('thanks-view');
+
+
+        const onboardBtn = document.getElementById('onboardBtn');
+        const emergencyButtons = document.querySelectorAll('.emergency-btn');
+        const finishJourneyBtn = document.getElementById('finishJourneyBtn');
+        const standbyBtn = document.getElementById('standbyBtn');
+        const cancelSearchBtn = document.getElementById('cancelSearchBtn');
+        
+        // State for two-stage confirmation
+        let confirmationPending = false;
+
+
+
+        // --- Button Selection Logic ---
+        emergencyButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                emergencyButtons.forEach(btn => btn.classList.remove('selected'));
+                button.classList.add('selected');
+            });
+        });
+
+        // --- View Management Function ---
+        function setView(viewState) {
+            waitingView.classList.add('hidden');
+            searchingView.classList.add('hidden');
+            enrouteView.classList.add('hidden');
+            thanksView.classList.add('hidden');
+            
+            // Clear pending confirmation state on view change
+            confirmationPending = false;
+            
+            // Clean up map resources when changing views
+            if (viewState === 'waiting' || viewState === 'thanks') {
+                stopLocationTracking();
+                if (map) {
+                    map.remove();
+                    map = null;
+                }
+            }
+
+            // Set Titles and View
+            if (viewState === 'waiting') {
+                waitingView.classList.remove('hidden');
+                document.getElementById('dashboard-title').textContent = 'EMERGENCY PATIENT PICKUP';
+
+            } else if (viewState === 'searching') {
+                searchingView.classList.remove('hidden');
+                document.getElementById('dashboard-title').textContent = 'DESTINATION PENDING';
+                document.getElementById('dashboard-tagline').textContent = 'Securing the best care path.';
+                
+                // // Start location tracking and initialize map
+                // navigator.geolocation.getCurrentPosition(async position => {
+                //     const { longitude, latitude } = position.coords;
+                    
+                //     initializeMap(longitude, latitude);
+                //     startLocationTracking();
+                    
+                //     // Search for nearby hospitals
+                //     const hospitals = await searchNearbyHospitals(longitude, latitude);
+                //     displayHospitalList(hospitals);
+                    
+                //     // Automatically select the first hospital
+                //     if (hospitals.length > 0) {
+                //         selectHospital(hospitals[0]);
+                //         setView('enroute');
+                //     }
+                // });
+                
+            } else if (viewState === 'enroute') {
+                enrouteView.classList.remove('hidden');
+                document.getElementById('dashboard-title').textContent = 'EN ROUTE TO HOSPITAL';
+                document.getElementById('dashboard-tagline').textContent = 'Follow the navigation to City Trauma Center.';
+                document.getElementById('hospital-distance').textContent = '5.8 km';
+                document.getElementById('hospital-eta').textContent = '12 minutes';
+
+            } else if (viewState === 'thanks') {
+                thanksView.classList.remove('hidden');
+                document.getElementById('dashboard-title').textContent = 'TRIP COMPLETED';
+                document.getElementById('dashboard-tagline').textContent = 'Ready for the next call.';
+                document.getElementById('trip-time').textContent = '28 min 15 sec';
+                document.getElementById('trips-today').textContent = '5';
+            }
+        }
+        
+        // Initialize the view when dashboard.html loads
+        setView('waiting'); 
+
+        // --- Logout Logic ---
+        logoutBtn.addEventListener('click', () => {
+            setTimeout(() => {
+                window.location.href = 'index.html'; 
+            }, 2000);
+        });
+
+        // --- Onboard Patient / Start Hospital Search Logic ---
+                // Update the onboardBtn click handler:
+        onboardBtn.addEventListener('click', async () => {
+            const selectedButton = document.querySelector('.emergency-btn.selected');
+            if (!selectedButton) {
+                alert("Please select an emergency type");
+                return;
+            }
+            
+            setView('searching');
+
+            try {
+                // Get current position with timeout
+                const position = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(
+                        resolve,
+                        reject,
+                        {
+                            enableHighAccuracy: true,
+                            timeout: 15000,
+                            maximumAge: 0
+                        }
+                    );
+                });
+
+                const { longitude, latitude } = position.coords;
+                console.log("Current position:", longitude, latitude);
+                
+                // Initialize map
+                initializeMap(longitude, latitude);
+                startLocationTracking();
+                
+                // Search for nearby hospitals
+                const hospitals = await searchNearbyHospitals(longitude, latitude);
+                console.log("Processed hospitals:", hospitals);
+                
+                if (hospitals && hospitals.length > 0) {
+                    displayHospitalList(hospitals);
+                    selectHospital(hospitals[0]);
+                    setView('enroute');
+                } else {
+                    throw new Error("No hospitals found");
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Error: " + error.message + "\nRetrying with mock data...");
+                
+                // Fallback to mock data
+                const mockHospitals = [{
+                    id: "mock1",
+                    name: "Emergency Hospital",
+                    coordinates: [77.6077, 12.9434],
+                    address: "Nearby Medical Center",
+                    traumaBeds: 5,
+                    waitTime: "10min"
+                }];
+                
+                displayHospitalList(mockHospitals);
+                selectHospital(mockHospitals[0]);
+                setView('enroute');
+            }
+        });
+        // --- Finish Journey Logic (Double-Tap Confirmation) ---
+        finishJourneyBtn.addEventListener('click', () => {
+            const confirmationTimeout = 3000; // 3 seconds to re-confirm
+            
+            if (confirmationPending) {
+                // Stage 2: Confirmed
+                confirmationPending = false;
+                setView('thanks');
+            } else {
+                // Stage 1: Request Confirmation
+                confirmationPending = true;
+                
+                // Reset confirmation state if user doesn't tap again quickly
+                setTimeout(() => {
+                    if (confirmationPending) {
+                        confirmationPending = false;
+                    }
+                }, confirmationTimeout);
+            }
+        });
+
+        // --- Cancel Search Logic ---
+        cancelSearchBtn.addEventListener('click', () => {
+            setView('waiting');
+        });
+
+        // --- Go to Standby Logic ---
+        standbyBtn.addEventListener('click', () => {
+            // Reset the selection state for the next call
+            emergencyButtons.forEach(btn => btn.classList.remove('selected'));
+            document.querySelector('.emergency-btn[value="Accident"]').classList.add('selected');
+            setView('waiting'); 
+        });
+    </script>
+</body>
+</html>
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sevak - Hospital Navigation</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #e0e7ff; min-height: 100vh; display: flex; flex-direction: column; }
+        main { flex-grow: 1; }
+        .hidden { display: none !important; }
+
+        nav { background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 1000; }
+        .nav-container { max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; height: 64px; }
+        .logo-text { font-size: 28px; font-weight: 700; color: #111827; letter-spacing: 1px; text-transform: uppercase; }
+        .logout-btn { background: #ef4444; color: white; padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; }
+
+        .hero { padding: 0 20px; max-width: 100%; height: calc(100vh - 64px); margin: 0 auto; display: flex; align-items: center; justify-content: flex-start; background-image: url('ambulance.jpg'); background-size: cover; background-position: center; position: relative; }
+        .hero::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); z-index: 1; }
+        .hero-content { max-width: 1200px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; position: relative; z-index: 10; align-items: flex-start; }
+        .hero-text-box { color: white; max-width: 600px; text-align: left; margin-bottom: 20px; }
+        .hero-text-box h1 { font-size: 52px; font-weight: 900; line-height: 1.1; margin-bottom: 20px; }
+        .hero-text-box .tagline { font-size: 24px; font-weight: 600; color: white; }
+
+        .view-container { width: 100%; max-width: 450px; padding: 30px; background: rgba(255, 255, 255, 0.95); border-radius: 12px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5); color: #1f2937; text-align: center; position: relative; }
+
+        #searching-view h2 { font-size: 28px; margin-bottom: 15px; color: #ef4444; }
+        #searching-view p { font-size: 18px; margin-bottom: 20px; font-weight: 500; }
+        .spinner { border: 4px solid rgba(0, 0, 0, 0.1); width: 40px; height: 40px; border-radius: 50%; border-left-color: #2563eb; animation: spin 1s ease infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .cancel-search {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            border: 1px solid #ef4444;
+            color: #ef4444;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            z-index: 1;
+        }
+        .cancel-search:hover { background: #fef2f2; }
+
+        #enroute-view h2 { font-size: 28px; margin-bottom: 15px; color: #ef4444; }
+        .hospital-details { text-align: left; margin-bottom: 20px; padding: 15px; border: 2px solid #ef4444; border-radius: 8px; background: #fff5f5; }
+        .hospital-details p { margin: 5px 0; font-size: 16px; color: #4b5563; }
+        .hospital-details strong { color: #111827; }
+        .critical-info { font-size: 20px !important; font-weight: 700 !important; color: #ef4444; margin: 10px 0 !important; }
+        .turn-instructions { margin-top: 10px; font-weight: 700; color: #2563eb; font-size: 16px; text-align: left; }
+
+        .hospital-list {
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .hospital-item {
+            padding: 10px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            text-align: left;
+        }
+        
+        .hospital-item:hover { background-color: #f3f4f6; }
+        .hospital-item.selected {
+            border-color: #2563eb;
+            background-color: #eff6ff;
+        }
+        
+        .hospital-item h3 { font-size: 16px; margin-bottom: 4px; }
+        .hospital-item p { font-size: 14px; color: #6b7280; margin: 2px 0; }
+
+        .btn-primary { 
+            color: white; 
+            padding: 12px 24px; 
+            border: none; 
+            border-radius: 12px; 
+            font-size: 18px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            width: 100%; 
+            transition: transform 0.3s, box-shadow 0.3s; 
+            margin-top: 15px; 
+        }
+        .btn-primary-blue {
+            background: linear-gradient(to right, #2563eb, #4f46e5);
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+        }
+        .btn-primary-blue:hover { 
+            transform: scale(1.02); 
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5); 
+        }
+
+        #thanks-view h2 { font-size: 28px; margin-bottom: 15px; color: #ef4444; }
+        #thanks-view p { font-size: 18px; margin-bottom: 20px; font-weight: 500; }
+        #performance-metrics { background: #f0fdf4; border: 1px solid #10b981; border-radius: 8px; padding: 15px; margin-top: 15px; }
+        #performance-metrics p { margin: 5px 0; font-size: 16px; color: #065f46; text-align: left; }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <div class="logo">
+                 <a href="index.html" style="text-decoration: none;"><span class="logo-text">SEVAK</span></a>
+            </div>
+            <div class="nav-menu">
+                <button class="logout-btn" id="logoutBtn">Logout</button>
+            </div>
+        </div>
+    </nav>
+    
+    <main>
+        <section class="hero">
+            <div class="hero-content">
+                <div class="hero-text-box">
+                    <h1 id="dashboard-title">DESTINATION PENDING</h1>
+                    <p class="tagline" id="dashboard-tagline">Securing the best care path.</p> 
+                </div>
+
+                <div class="view-container" id="searching-view">
+                    <h2>DESTINATION PENDING</h2>
+                    <div class="spinner"></div>
+                    <p>Consulting live bed availability and finding the nearest Trauma Center...</p>
+                    <button class="btn-primary btn-primary-blue" id="requestLocationBtn" style="margin-bottom: 10px;">
+                        ENABLE LOCATION ACCESS
+                    </button>
+                    <button class="cancel-search" id="cancelSearchBtn">Cancel Search</button>
+                </div>
+
+                <div class="view-container hidden" id="enroute-view">
+                    <h2>DESTINATION ASSIGNED</h2>
+                    <div class="hospital-details">
+                        <p>Assigned Hospital:</p>
+                        <p class="critical-info" id="hospital-name">City Trauma Center</p>
+                        <p>Estimated Travel Time:</p>
+                        <p class="critical-info"><span id="hospital-eta">12 minutes</span></p>
+                        <p>Distance: <span id="hospital-distance">5.8 km</span></p>
+                        <p>Hospital Contact: <strong id="hospital-contact">(555) 555-1234</strong></p>
+                    </div>
+                    
+                    <div id="map" style="height: 300px; width: 100%; border-radius: 8px;"></div>
+                    <div id="turn-by-turn" class="turn-instructions"></div>
+                    <div id="hospital-list" class="hospital-list hidden"></div>
+                    
+                    <button class="btn-primary btn-primary-blue" id="finishJourneyBtn">
+                        PATIENT DELIVERED, COMPLETE TRIP
+                    </button>
+                </div>
+
+                <div class="view-container hidden" id="thanks-view">
+                    <h2>THANK YOU, SEVAK!</h2>
+                    <p>Patient transfer successful.</p>
+                    
+                    <div id="performance-metrics">
+                        <p>Trip Time: <strong><span id="trip-time">28 min 15 sec</span></strong></p>
+                        <p>Total Trips Today: <strong><span id="trips-today">5</span></strong></p>
+                        <p>Performance Rating: <strong>Excellent ⭐</strong></p>
+                    </div>
+
+                    <button class="btn-primary btn-primary-blue" id="standbyBtn">
+                        READY FOR NEXT CALL
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+    
+    <script>
+        const MAPBOX_TOKEN = 'pk.eyJ1IjoicGl5dXNoYWx3YXlzIiwiYSI6ImNtZ2Z6bTM5ZDBjZnYyaHNiaTZpbG50aGYifQ.WiQy4yG9X3QzobLdlYRQgQ';
+        
+        mapboxgl.accessToken = MAPBOX_TOKEN;
+        let map = null;
+        let currentLocationMarker = null;
+        let hospitalMarkers = [];
+        let currentRoute = null;
+        let watchPositionId = null;
+        let tripStartTime = null;
+        
+        const searchingView = document.getElementById('searching-view');
+        const enrouteView = document.getElementById('enroute-view');
+        const thanksView = document.getElementById('thanks-view');
+        const cancelSearchBtn = document.getElementById('cancelSearchBtn');
+        const finishJourneyBtn = document.getElementById('finishJourneyBtn');
+        const standbyBtn = document.getElementById('standbyBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const requestLocationBtn = document.getElementById('requestLocationBtn');
+
+        function initializeMap(longitude, latitude) {
+            map = new mapboxgl.Map({
+                container: 'map',
+                style: 'mapbox://styles/mapbox/streets-v11',
+                center: [longitude, latitude],
+                zoom: 13
+            });
+
+            map.addControl(new mapboxgl.NavigationControl());
+
+            const el = document.createElement('div');
+            el.style.backgroundColor = '#2563eb';
+            el.style.width = '15px';
+            el.style.height = '15px';
+            el.style.borderRadius = '50%';
+            el.style.border = '3px solid white';
+            
+            currentLocationMarker = new mapboxgl.Marker(el)
+                .setLngLat([longitude, latitude])
+                .addTo(map);
+        }
+
+        function startLocationTracking() {
+            if ("geolocation" in navigator) {
+                watchPositionId = navigator.geolocation.watchPosition(
+                    position => {
+                        const { longitude, latitude } = position.coords;
+                        
+                        if (currentLocationMarker) {
+                            currentLocationMarker.setLngLat([longitude, latitude]);
+                        }
+                        
+                        if (currentRoute) {
+                            updateRoute(longitude, latitude);
+                        }
+                    },
+                    error => {
+                        console.error("Error tracking location:", error);
+                    },
+                    {
+                        enableHighAccuracy: false,
+                        maximumAge: 30000,
+                        timeout: 10000
+                    }
+                );
+            }
+        }
+
+        function stopLocationTracking() {
+            if (watchPositionId) {
+                navigator.geolocation.clearWatch(watchPositionId);
+                watchPositionId = null;
+            }
+        }
+
+        async function searchNearbyHospitals(longitude, latitude) {
+            try {
+                const response = await fetch(
+                    `https://api.mapbox.com/geocoding/v5/mapbox.places/hospital.json?` +
+                    `proximity=${longitude},${latitude}&` +
+                    `access_token=${MAPBOX_TOKEN}&` +
+                    `limit=10&` +
+                    `bbox=${longitude-0.1},${latitude-0.1},${longitude+0.1},${latitude+0.1}&` +
+                    `types=poi&` +
+                    `country=IN`
+                );
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (!data.features || data.features.length === 0) {
+                    return [{
+                        id: "mock1",
+                        name: "City Hospital",
+                        coordinates: [longitude + 0.01, latitude + 0.01],
+                        address: "123 Medical Center Rd",
+                        traumaBeds: 5,
+                        waitTime: "15min"
+                    }];
+                }
+
+                return data.features.map(hospital => ({
+                    id: hospital.id,
+                    name: hospital.text || hospital.place_name || "Unknown Hospital",
+                    coordinates: hospital.center,
+                    address: hospital.place_name || "Address unavailable",
+                    traumaBeds: Math.floor(Math.random() * 10),
+                    waitTime: Math.floor(Math.random() * 30) + "min"
+                }));
+
+            } catch (error) {
+                console.error("Error searching hospitals:", error);
+                return [{
+                    id: "mock1",
+                    name: "City Hospital",
+                    coordinates: [longitude + 0.01, latitude + 0.01],
+                    address: "123 Medical Center Rd",
+                    traumaBeds: 5,
+                    waitTime: "15min"
+                }];
+            }
+        }
+
+        async function calculateRoute(start, end) {
+            try {
+                const response = await fetch(
+                    `https://api.mapbox.com/directions/v5/mapbox/driving/` +
+                    `${start[0]},${start[1]};${end[0]},${end[1]}?` +
+                    `steps=true&` +
+                    `geometries=geojson&` +
+                    `access_token=${MAPBOX_TOKEN}`
+                );
+                
+                const data = await response.json();
+                
+                if (data.routes && data.routes[0]) {
+                    return {
+                        route: data.routes[0],
+                        duration: Math.round(data.routes[0].duration / 60),
+                        distance: (data.routes[0].distance / 1000).toFixed(1)
+                    };
+                }
+            } catch (error) {
+                console.error("Error calculating route:", error);
+            }
+            return null;
+        }
+
+        function updateRoute(currentLng, currentLat) {
+            if (currentRoute && currentRoute.hospital) {
+                calculateRoute(
+                    [currentLng, currentLat],
+                    currentRoute.hospital.coordinates
+                ).then(routeData => {
+                    if (routeData) {
+                        displayRoute(routeData.route);
+                        updateNavigationInfo(routeData);
+                    }
+                });
+            }
+        }
+
+        function displayRoute(route) {
+            if (map.getSource('route')) {
+                map.removeLayer('route');
+                map.removeSource('route');
+            }
+
+            map.addSource('route', {
+                type: 'geojson',
+                data: {
+                    type: 'Feature',
+                    geometry: route.geometry
+                }
+            });
+
+            map.addLayer({
+                id: 'route',
+                type: 'line',
+                source: 'route',
+                paint: {
+                    'line-color': '#2563eb',
+                    'line-width': 4,
+                    'line-opacity': 0.75
+                }
+            });
+        }
+
+        function updateNavigationInfo(routeData) {
+            document.getElementById('hospital-eta').textContent = `${routeData.duration} minutes`;
+            document.getElementById('hospital-distance').textContent = `${routeData.distance} km`;
+            
+            const nextStep = routeData.route.legs[0].steps[0];
+            if (nextStep) {
+                document.getElementById('turn-by-turn').textContent = 
+                    `NEXT: ${nextStep.maneuver.instruction}`;
+            }
+        }
+
+        async function selectHospital(hospital) {
+            currentRoute = { hospital: hospital };
+            
+            document.getElementById('hospital-name').textContent = hospital.name;
+            
+            try {
+                const position = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, {
+                        enableHighAccuracy: false,
+                        timeout: 10000,
+                        maximumAge: 30000
+                    });
+                });
+                
+                const { longitude, latitude } = position.coords;
+                updateRoute(longitude, latitude);
+                
+                const hospitalMarker = new mapboxgl.Marker({ color: '#ef4444' })
+                    .setLngLat(hospital.coordinates)
+                    .setPopup(new mapboxgl.Popup().setHTML(`<h3>${hospital.name}</h3>`))
+                    .addTo(map);
+                
+                hospitalMarkers.push(hospitalMarker);
+                
+                const bounds = new mapboxgl.LngLatBounds()
+                    .extend([longitude, latitude])
+                    .extend(hospital.coordinates);
+                
+                map.fitBounds(bounds, { padding: 50 });
+            } catch (error) {
+                console.error("Error in selectHospital:", error);
+            }
+        }
+
+        function setView(viewState) {
+            searchingView.classList.add('hidden');
+            enrouteView.classList.add('hidden');
+            thanksView.classList.add('hidden');
+
+            if (viewState === 'searching') {
+                searchingView.classList.remove('hidden');
+                document.getElementById('dashboard-title').textContent = 'DESTINATION PENDING';
+                document.getElementById('dashboard-tagline').textContent = 'Securing the best care path.';
+            } else if (viewState === 'enroute') {
+                enrouteView.classList.remove('hidden');
+                document.getElementById('dashboard-title').textContent = 'EN ROUTE TO HOSPITAL';
+                document.getElementById('dashboard-tagline').textContent = 'Follow the navigation to assigned hospital.';
+            } else if (viewState === 'thanks') {
+                thanksView.classList.remove('hidden');
+                document.getElementById('dashboard-title').textContent = 'TRIP COMPLETED';
+                document.getElementById('dashboard-tagline').textContent = 'Ready for the next call.';
+                
+                stopLocationTracking();
+                
+                if (tripStartTime) {
+                    const tripDuration = Date.now() - tripStartTime;
+                    const minutes = Math.floor(tripDuration / 60000);
+                    const seconds = Math.floor((tripDuration % 60000) / 1000);
+                    document.getElementById('trip-time').textContent = `${minutes} min ${seconds} sec`;
+                }
+            }
+        }
+
+        async function initialize() {
+            tripStartTime = Date.now();
+            
+            try {
+                // Use cached position (fast, low accuracy is OK for ambulance dispatch)
+                const position = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(
+                        resolve,
+                        reject,
+                        {
+                            enableHighAccuracy: false,  // Low accuracy = FAST
+                            timeout: 15000,             // 15 seconds
+                            maximumAge: 300000          // Accept position up to 5 minutes old
+                        }
+                    );
+                });
+                
+                console.log('✅ Location acquired:', position.coords);
+                
+                const { longitude, latitude } = position.coords;
+                
+                initializeMap(longitude, latitude);
+                startLocationTracking();
+                
+                const hospitals = await searchNearbyHospitals(longitude, latitude);
+                console.log("Found hospitals:", hospitals);
+                
+                if (hospitals && hospitals.length > 0) {
+                    await selectHospital(hospitals[0]);
+                    
+                    setTimeout(() => {
+                        setView('enroute');
+                    }, 2000);
+                }
+                
+            } catch (error) {
+                console.error("Location error:", error);
+                alert("Unable to get location. Using demo mode with sample data.");
+                
+                // Use Bangalore coordinates as fallback
+                const fallbackLongitude = 77.5946;
+                const fallbackLatitude = 12.9716;
+                
+                initializeMap(fallbackLongitude, fallbackLatitude);
+                
+                const mockHospitals = [{
+                    id: "mock1",
+                    name: "City Emergency Hospital",
+                    coordinates: [fallbackLongitude + 0.02, fallbackLatitude + 0.02],
+                    address: "Emergency Medical Center, Main Road",
+                    traumaBeds: 8,
+                    waitTime: "12min"
+                }];
+                
+                await selectHospital(mockHospitals[0]);
+                
+                setTimeout(() => {
+                    setView('enroute');
+                }, 2000);
+            }
+        }
+
+        requestLocationBtn.addEventListener('click', () => {
+            navigator.geolocation.getCurrentPosition(
+                pos => {
+                    console.log('✅ Location access granted!');
+                    requestLocationBtn.textContent = '✓ LOCATION ENABLED';
+                    requestLocationBtn.disabled = true;
+                    initialize();
+                },
+                err => {
+                    console.error('❌ Location access denied:', err);
+                    alert(`Location Error: ${err.message}\n\nPlease check:\n1. Browser location permission\n2. System location services are ON\n3. You're using HTTP/HTTPS (not file://)`);
+                },
+                {
+                    enableHighAccuracy: false,
+                    timeout: 10000,
+                    maximumAge: 30000
+                }
+            );
+        });
+        
+        cancelSearchBtn.addEventListener('click', () => {
+            stopLocationTracking();
+            window.location.href = 'dashboard.html';
+        });
+
+        finishJourneyBtn.addEventListener('click', () => {
+            setView('thanks');
+        });
+
+        standbyBtn.addEventListener('click', () => {
+            window.location.href = 'dashboard.html';
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            window.location.href = 'index.html'; 
+        });
+
+        window.addEventListener('load', () => {
+            console.log('Page loaded. Click "ENABLE LOCATION ACCESS" button to start.');
+        });
+    </script>
+</body>
+</html>

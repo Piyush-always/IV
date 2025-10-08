@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sevak - Hospital Navigation</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; 
+            min-height: 100vh; 
+            display: flex; 
+            flex-direction: column;
+            background: #000;
+        }
+        main { 
+            flex-grow: 1;
+            background-image: url('ambulance.jpg');
+            background-size: cover;
+            background-position: center;
+            position: relative;
+        }
+        main::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1;
+        }
+        .hidden { display: none !important; }
+
+        nav { background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 1000; }
+        .nav-container { max-width: 1400px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; height: 64px; }
+        .logo-text { font-size: 28px; font-weight: 700; color: #111827; letter-spacing: 1px; text-transform: uppercase; }
+        .logout-btn { background: #ef4444; color: white; padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; }
+
+        .hero { 
+            padding: 20px; 
+            max-width: 100%; 
+            min-height: calc(100vh - 64px);
+            position: relative;
+            z-index: 2;
+        }
+        .hero-content { 
+            max-width: 1400px; 
+            margin: 0 auto; 
+        }
+        .page-title { 
+            color: white; 
+            font-size: 32px; 
+            font-weight: 900; 
+            margin-bottom: 20px; 
+        }
+
+        /* Searching View */
+        .view-container { 
+            width: 100%; 
+            max-width: 450px; 
+            padding: 30px; 
+            background: rgba(255, 255, 255, 0.1); 
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px; 
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); 
+            margin: 0 auto;
+            backdrop-filter: blur(10px);
+        }
+        #searching-view h2 { font-size: 28px; margin-bottom: 15px; color: white; }
+        #searching-view p { font-size: 18px; margin-bottom: 20px; font-weight: 500; color: rgba(255, 255, 255, 0.8); }
+        .spinner { 
+            border: 4px solid rgba(255, 255, 255, 0.1); 
+            width: 40px; 
+            height: 40px; 
+            border-radius: 50%; 
+            border-left-color: white; 
+            animation: spin 1s ease infinite; 
+            margin: 20px auto; 
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Hospital Selection View */
+        .hospital-selection-container { 
+            max-width: 900px; /* Limit maximum width */
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1); 
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px; 
+            padding: 20px; 
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+        }
+        #hospital-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); /* 2 columns */
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .hospital-card { 
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px; 
+            padding: 15px; 
+            cursor: pointer; 
+            transition: all 0.3s;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            min-height: 140px; /* Set minimum height */
+            display: flex;
+            flex-direction: column;
+        }
+        .hospital-card:hover { 
+            border-color: rgba(255, 255, 255, 0.4);
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+        }
+        .hospital-card.selected { 
+            border-color: #2563eb; 
+            background: rgba(37, 99, 235, 0.2);
+            box-shadow: 0 0 15px rgba(37, 99, 235, 0.3);
+            transform: scale(1.02);
+        }
+        .hospital-card h3 { 
+            font-size: 16px; 
+            margin-bottom: 6px; 
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .hospital-card p { font-size: 14px; color: rgba(255, 255, 255, 0.8); margin: 5px 0; }
+        .hospital-info { 
+            display: flex;
+            gap: 8px;
+            margin-top: auto; /* Push to bottom */
+            flex-wrap: wrap;
+        }
+        .info-badge { 
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: white; /* Add this */
+            background: rgba(255, 255, 255, 0.1); /* Add this */
+            border: 1px solid rgba(255, 255, 255, 0.2); /* Add this */
+        }
+        /* Also ensure icons are white */
+        .info-badge i {
+            color: white;
+            margin-right: 4px;
+        }
+
+        /* En Route Layout */
+        .enroute-layout { 
+            display: grid; 
+            grid-template-columns: 400px 1fr; 
+            gap: 20px; 
+        }
+        .details-panel { 
+            background: rgba(255, 255, 255, 0.1); 
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px; 
+            padding: 25px; 
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            color: white;
+        }
+        .map-panel { 
+            background: rgba(255, 255, 255, 0.1); 
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px; 
+            overflow: hidden; 
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2); 
+            height: calc(100vh - 180px); 
+            min-height: 500px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .status-badge { 
+            display: inline-block; 
+            padding: 8px 16px; 
+            border-radius: 20px; 
+            font-weight: 600; 
+            font-size: 14px; 
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .status-badge.navigating { 
+            background: rgba(37, 99, 235, 0.2); 
+            color: white;
+            border-color: rgba(37, 99, 235, 0.4);
+        }
+        .status-badge.arrived { 
+            background: rgba(16, 185, 129, 0.2); 
+            color: white;
+            border-color: rgba(16, 185, 129, 0.4);
+        }
+
+        .hospital-details { 
+            margin-bottom: 20px; 
+            padding-bottom: 20px; 
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2); 
+        }
+        .hospital-details h3 { font-size: 22px; color: white; margin-bottom: 10px; }
+        .detail-row { display: flex; justify-content: space-between; margin: 8px 0; }
+        .detail-label { color: rgba(255, 255, 255, 0.7); font-size: 14px; }
+        .detail-value { color: white; font-weight: 600; font-size: 14px; }
+        .eta-display { 
+            font-size: 36px; 
+            font-weight: 900; 
+            color: white; 
+            margin: 20px 0; 
+            text-align: center;
+            text-shadow: 0 0 10px rgba(37, 99, 235, 0.5);
+        }
+        
+        /* Update the turn-instructions class styles */
+        .turn-instructions { 
+            background: rgba(255, 255, 255, 0.1); 
+            padding: 15px; 
+            border-radius: 8px; 
+            margin: 15px 0;
+            border-left: 4px solid #2563eb;
+            backdrop-filter: blur(5px);
+        }
+
+        .turn-instructions strong { 
+            color: white; 
+            display: block; 
+            margin-bottom: 5px;
+            text-shadow: 0 0 10px rgba(37, 99, 235, 0.5);
+        }
+
+        .turn-instructions p { 
+            color: rgba(255, 255, 255, 0.9); 
+            font-size: 14px; 
+            line-height: 1.6; 
+        }
+        .btn-primary { 
+            color: white; 
+            padding: 14px 24px; 
+            border: none; 
+            border-radius: 10px; 
+            font-size: 18px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            width: 100%; 
+            transition: all 0.3s; 
+            margin-top: 15px; 
+        }
+        .btn-primary-blue {
+            background: linear-gradient(to right, #2563eb, #4f46e5);
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+        }
+        .btn-primary-blue:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4); 
+        }
+        .btn-primary-green {
+            background: linear-gradient(to right, #10b981, #059669);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+        .btn-primary-green:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        /* Thanks View */
+        .thanks-container { 
+            max-width: 500px; 
+            margin: 50px auto; 
+            background: rgba(255, 255, 255, 0.1); 
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px; 
+            padding: 40px; 
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+        }
+        .thanks-container h2 { 
+            font-size: 32px; 
+            margin-bottom: 15px; 
+            color: white;
+            text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+        .thanks-container p { 
+            font-size: 18px; 
+            margin-bottom: 25px; 
+            color: rgba(255, 255, 255, 0.9); 
+        }
+        #performance-metrics { 
+            background: rgba(16, 185, 129, 0.1); 
+            border: 1px solid rgba(16, 185, 129, 0.3); 
+            border-radius: 8px; 
+            padding: 20px; 
+            margin: 25px 0;
+            backdrop-filter: blur(5px);
+        }
+        #performance-metrics p { 
+            margin: 10px 0; 
+            font-size: 16px; 
+            color: white; 
+            text-align: left; 
+        }
+
+        @media (max-width: 1024px) {
+            .enroute-layout { grid-template-columns: 1fr; }
+            .map-panel { height: 400px; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <div class="logo">
+                 <a href="index.html" style="text-decoration: none;"><span class="logo-text">SEVAK</span></a>
+            </div>
+            <div class="nav-menu">
+                <button class="logout-btn" id="logoutBtn">Logout</button>
+            </div>
+        </div>
+    </nav>
+    
+    <main>
+        <section class="hero">
+            <div class="hero-content">
+                
+                <!-- 1. Searching View -->
+                <div id="searching-view">
+                    <div class="view-container">
+                        <h2>Finding Nearest Hospitals</h2>
+                        <div class="spinner"></div>
+                        <p>Searching for available emergency centers near you...</p>
+                    </div>
+                </div>
+
+                <!-- 2. Hospital Selection View -->
+                <div id="hospital-selection-view" class="hidden">
+                    <h1 class="page-title">Select Destination Hospital</h1>
+                    <div class="hospital-selection-container">
+                        <div id="hospital-list"></div>
+                        <button class="btn-primary btn-primary-blue" id="confirmHospitalBtn" disabled>
+                            START JOURNEY
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 3. En Route View -->
+                <div id="enroute-view" class="hidden">
+                    <h1 class="page-title">Navigation Active</h1>
+                    <div class="enroute-layout">
+                        <div class="details-panel">
+                            <span class="status-badge" id="status-badge">
+                                <i class="fas fa-map"></i> ROUTE PREVIEW
+                            </span>
+                            
+                            <div class="hospital-details">
+                                <h3 id="hospital-name">City Hospital</h3>
+                                <div class="detail-row">
+                                    <span class="detail-label">Address:</span>
+                                    <span class="detail-value" id="hospital-address">Loading...</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Distance:</span>
+                                    <span class="detail-value" id="hospital-distance">-- km</span>
+                                </div>
+                            </div>
+
+                            <div class="eta-display" id="hospital-eta">-- min</div>
+
+                            <div class="turn-instructions" id="turn-by-turn">
+                                <strong>Next Turn:</strong>
+                                <p>Loading directions...</p>
+                            </div>
+
+                            <button class="btn-primary btn-primary-blue" id="startNavigationBtn">
+                                <i class="fas fa-play-circle"></i> START NAVIGATION
+                            </button>
+
+                            <button class="btn-primary btn-primary-green hidden" id="stopNavigationBtn">
+                                <i class="fas fa-stop-circle"></i> STOP NAVIGATION
+                            </button>
+
+                            <button class="btn-primary btn-primary-blue hidden" id="resumeNavigationBtn">
+                                <i class="fas fa-play-circle"></i> RESUME NAVIGATION
+                            </button>
+
+                            <button class="btn-primary btn-primary-green hidden" id="arrivedBtn">
+                                <i class="fas fa-check-circle"></i> WE'VE ARRIVED
+                            </button>
+
+                            <button class="btn-primary btn-primary-blue hidden" id="exitNavigationBtn">
+                                <i class="fas fa-flag-checkered"></i> END NAVIGATION
+                            </button>
+                        </div>
+
+                        <div class="map-panel">
+                            <div id="map" style="width: 100%; height: 100%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Thanks View -->
+                <div id="thanks-view" class="hidden">
+                    <div class="thanks-container">
+                        <h2><i class="fas fa-check-circle"></i> JOURNEY COMPLETE!</h2>
+                        <p>Patient delivered successfully to hospital.</p>
+                        
+                        <div id="performance-metrics">
+                            <p><strong>Trip Duration:</strong> <span id="trip-time">-- min -- sec</span></p>
+                            <p><strong>Distance Covered:</strong> <span id="total-distance">-- km</span></p>
+                            <p><strong>Trips Today:</strong> <span id="trips-today">5</span></p>
+                            <p><strong>Rating:</strong> Excellent ⭐⭐⭐⭐⭐</p>
+                        </div>
+
+                        <button class="btn-primary btn-primary-blue" id="standbyBtn">
+                            <i class="fas fa-redo"></i> READY FOR NEXT CALL
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+    </main>
+    
+    <script>
+        const GOOGLE_MAPS_API_KEY = 'AIzaSyAv8oO5Jct79fNkmwK5eFDaKgfMtFZ81fQ';
+        
+        let map = null;
+        let currentLocationMarker = null;
+        let hospitalMarker = null;
+        let directionsService = null;
+        let directionsRenderer = null;
+        let watchPositionId = null;
+        let tripStartTime = null;
+        let currentRoute = null;
+        let selectedHospital = null;
+        let hospitalsData = [];
+        let journeyStarted = false;
+        let lastKnownPosition = null;
+        
+        const searchingView = document.getElementById('searching-view');
+        const hospitalSelectionView = document.getElementById('hospital-selection-view');
+        const enrouteView = document.getElementById('enroute-view');
+        const thanksView = document.getElementById('thanks-view');
+        const confirmHospitalBtn = document.getElementById('confirmHospitalBtn');
+        const startNavigationBtn = document.getElementById('startNavigationBtn');
+        const stopNavigationBtn = document.getElementById('stopNavigationBtn');
+        const resumeNavigationBtn = document.getElementById('resumeNavigationBtn');
+        const arrivedBtn = document.getElementById('arrivedBtn');
+        const exitNavigationBtn = document.getElementById('exitNavigationBtn');
+        const standbyBtn = document.getElementById('standbyBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        function loadGoogleMapsAPI() {
+            return new Promise((resolve, reject) => {
+                if (window.google && window.google.maps) {
+                    resolve();
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places,geometry`;
+                script.async = true;
+                script.defer = true;
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+
+        function initializeMap(latitude, longitude) {
+            const position = { lat: latitude, lng: longitude };
+            
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: position,
+                zoom: 14,
+                mapTypeControl: false,
+                streetViewControl: false,
+                fullscreenControl: true,
+                zoomControl: true
+            });
+
+            currentLocationMarker = new google.maps.Marker({
+                position: position,
+                map: map,
+                title: 'Your Location',
+                icon: {
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 10,
+                    fillColor: '#2563eb',
+                    fillOpacity: 1,
+                    strokeColor: '#ffffff',
+                    strokeWeight: 3
+                },
+                zIndex: 1000
+            });
+
+            directionsService = new google.maps.DirectionsService();
+            directionsRenderer = new google.maps.DirectionsRenderer({
+                map: map,
+                suppressMarkers: true,
+                polylineOptions: {
+                    strokeColor: '#2563eb',
+                    strokeWeight: 6
+                }
+            });
+        }
+
+        function startLocationTracking() {
+            if ("geolocation" in navigator) {
+                watchPositionId = navigator.geolocation.watchPosition(
+                    position => {
+                        const { latitude, longitude } = position.coords;
+                        const pos = { lat: latitude, lng: longitude };
+                        lastKnownPosition = pos;
+                        
+                        if (currentLocationMarker) {
+                            currentLocationMarker.setPosition(pos);
+                        }
+                        
+                        if (journeyStarted && currentRoute && currentRoute.hospital) {
+                            updateRoute(latitude, longitude);
+                            checkIfArrived(latitude, longitude);
+                        }
+                    },
+                    error => {
+                        console.error("Error tracking location:", error);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 5000,
+                        timeout: 10000
+                    }
+                );
+            }
+        }
+
+        function stopLocationTracking() {
+            if (watchPositionId) {
+                navigator.geolocation.clearWatch(watchPositionId);
+                watchPositionId = null;
+            }
+        }
+
+        function checkIfArrived(latitude, longitude) {
+            if (!currentRoute || !currentRoute.hospital) return;
+            
+            const currentPos = new google.maps.LatLng(latitude, longitude);
+            const hospitalPos = new google.maps.LatLng(
+                currentRoute.hospital.coordinates.lat,
+                currentRoute.hospital.coordinates.lng
+            );
+            
+            const distance = google.maps.geometry.spherical.computeDistanceBetween(currentPos, hospitalPos);
+            
+            // If within 50 meters of hospital
+            if (distance < 50) {
+                document.getElementById('status-badge').innerHTML = '<i class="fas fa-check-circle"></i> ARRIVED';
+                document.getElementById('status-badge').className = 'status-badge arrived';
+                arrivedBtn.classList.remove('hidden');
+                
+                document.getElementById('turn-by-turn').innerHTML = 
+                    '<strong style="color: #10b981;">Destination Reached!</strong><p>You have arrived at the hospital.</p>';
+            }
+        }
+
+        async function searchNearbyHospitals(latitude, longitude) {
+            return new Promise((resolve, reject) => {
+                const service = new google.maps.places.PlacesService(map);
+                const request = {
+                    location: { lat: latitude, lng: longitude },
+                    radius: 10000,
+                    type: 'hospital'
+                };
+
+                service.nearbySearch(request, (results, status) => {
+                    if (status === google.maps.places.PlacesServiceStatus.OK && results.length > 0) {
+                        const hospitals = results.slice(0, 5).map((place, index) => ({
+                            id: place.place_id,
+                            name: place.name,
+                            coordinates: {
+                                lat: place.geometry.location.lat(),
+                                lng: place.geometry.location.lng()
+                            },
+                            address: place.vicinity || 'Address unavailable',
+                            rating: place.rating || 'N/A',
+                            traumaBeds: Math.floor(Math.random() * 10) + 1,
+                            waitTime: Math.floor(Math.random() * 25) + 5,
+                            isRecommended: index === 0
+                        }));
+                        resolve(hospitals);
+                    } else {
+                        resolve([{
+                            id: "mock1",
+                            name: "City Emergency Hospital",
+                            coordinates: { lat: latitude + 0.01, lng: longitude + 0.01 },
+                            address: "Emergency Medical Center",
+                            rating: 4.5,
+                            traumaBeds: 8,
+                            waitTime: 12,
+                            isRecommended: true
+                        }]);
+                    }
+                });
+            });
+        }
+
+        function displayHospitalList(hospitals) {
+            const listContainer = document.getElementById('hospital-list');
+            listContainer.innerHTML = '';
+            
+            hospitals.forEach(hospital => {
+                const card = document.createElement('div');
+                card.className = 'hospital-card';
+                card.dataset.id = hospital.id;
+                
+                card.innerHTML = `
+                    <h3>
+                        ${hospital.name}
+                        ${hospital.isRecommended ? '<span class="recommended-badge">RECOMMENDED</span>' : ''}
+                    </h3>
+                    <p style="margin: 10px 0;">${hospital.address}</p>
+                    <div class="hospital-info">
+                        <span class="info-badge"><i class="fas fa-bed"></i> ${hospital.traumaBeds} beds</span>
+                        <span class="info-badge"><i class="fas fa-clock"></i> ${hospital.waitTime} min wait</span>
+                        <span class="info-badge"><i class="fas fa-star"></i> ${hospital.rating}</span>
+                    </div>
+                `;
+                
+                card.addEventListener('click', () => selectHospitalCard(hospital, card));
+                listContainer.appendChild(card);
+            });
+        }
+
+        function selectHospitalCard(hospital, cardElement) {
+            document.querySelectorAll('.hospital-card').forEach(card => 
+                card.classList.remove('selected'));
+            cardElement.classList.add('selected');
+            
+            selectedHospital = hospital;
+            confirmHospitalBtn.disabled = false;
+        }
+
+        async function calculateRoute(start, end) {
+            return new Promise((resolve, reject) => {
+                directionsService.route(
+                    {
+                        origin: start,
+                        destination: end,
+                        travelMode: google.maps.TravelMode.DRIVING,
+                        drivingOptions: {
+                            departureTime: new Date(),
+                            trafficModel: 'bestguess'
+                        }
+                    },
+                    (response, status) => {
+                        if (status === 'OK') {
+                            directionsRenderer.setDirections(response);
+                            
+                            const route = response.routes[0].legs[0];
+                            resolve({
+                                duration: Math.ceil(route.duration.value / 60),
+                                distance: (route.distance.value / 1000).toFixed(1),
+                                steps: route.steps
+                            });
+                        } else {
+                            reject(new Error('Directions request failed: ' + status));
+                        }
+                    }
+                );
+            });
+        }
+
+        async function updateRoute(latitude, longitude) {
+            if (currentRoute && currentRoute.hospital) {
+                try {
+                    const routeData = await calculateRoute(
+                        { lat: latitude, lng: longitude },
+                        currentRoute.hospital.coordinates
+                    );
+                    updateNavigationInfo(routeData);
+                } catch (error) {
+                    console.error("Error updating route:", error);
+                }
+            }
+        }
+
+        function updateNavigationInfo(routeData) {
+            document.getElementById('hospital-eta').textContent = `${routeData.duration} min`;
+            document.getElementById('hospital-distance').textContent = `${routeData.distance} km`;
+            document.getElementById('total-distance').textContent = `${routeData.distance} km`;
+            
+            if (routeData.steps && routeData.steps.length > 0) {
+                const nextStep = routeData.steps[0];
+                const instruction = nextStep.instructions.replace(/<[^>]*>/g, '');
+                document.getElementById('turn-by-turn').innerHTML = 
+                    `<strong>Next Turn:</strong><p>${instruction}</p>`;
+            }
+        }
+
+        async function startJourney() {
+            if (!selectedHospital) return;
+            
+            currentRoute = { hospital: selectedHospital };
+            journeyStarted = false;
+            tripStartTime = null;
+            
+            // Reset navigation buttons
+            startNavigationBtn.classList.remove('hidden');
+            stopNavigationBtn.classList.add('hidden');
+            resumeNavigationBtn.classList.add('hidden');
+            arrivedBtn.classList.add('hidden');
+            exitNavigationBtn.classList.add('hidden');
+            
+            document.getElementById('hospital-name').textContent = selectedHospital.name;
+            document.getElementById('hospital-address').textContent = selectedHospital.address;
+            
+            // Add hospital marker
+            if (hospitalMarker) {
+                hospitalMarker.setMap(null);
+            }
+            
+            hospitalMarker = new google.maps.Marker({
+                position: selectedHospital.coordinates,
+                map: map,
+                title: selectedHospital.name,
+                icon: {
+                    url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png'
+                }
+            });
+
+            try {
+                const position = lastKnownPosition || await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(
+                        pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                        reject,
+                        { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+                    );
+                });
+                
+                const routeData = await calculateRoute(position, selectedHospital.coordinates);
+                updateNavigationInfo(routeData);
+                
+                setView('enroute');
+            } catch (error) {
+                console.error("Error starting journey:", error);
+                alert("Error calculating route. Please try again.");
+            }
+        }
+
+        function setView(viewState) {
+            searchingView.classList.add('hidden');
+            hospitalSelectionView.classList.add('hidden');
+            enrouteView.classList.add('hidden');
+            thanksView.classList.add('hidden');
+
+            if (viewState === 'searching') {
+                searchingView.classList.remove('hidden');
+            } else if (viewState === 'selection') {
+                hospitalSelectionView.classList.remove('hidden');
+            } else if (viewState === 'enroute') {
+                enrouteView.classList.remove('hidden');
+            } else if (viewState === 'thanks') {
+                thanksView.classList.remove('hidden');
+                stopLocationTracking();
+                
+                if (tripStartTime) {
+                    const tripDuration = Date.now() - tripStartTime;
+                    const minutes = Math.floor(tripDuration / 60000);
+                    const seconds = Math.floor((tripDuration % 60000) / 1000);
+                    document.getElementById('trip-time').textContent = `${minutes} min ${seconds} sec`;
+                }
+            }
+        }
+
+        async function initialize() {
+            try {
+                await loadGoogleMapsAPI();
+                console.log('✅ Google Maps API loaded');
+                
+                const position = await new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(
+                        resolve,
+                        reject,
+                        {
+                            enableHighAccuracy: false,
+                            timeout: 15000,
+                            maximumAge: 300000
+                        }
+                    );
+                });
+                
+                console.log('✅ Location acquired:', position.coords);
+                
+                const { latitude, longitude } = position.coords;
+                lastKnownPosition = { lat: latitude, lng: longitude };
+                
+                initializeMap(latitude, longitude);
+                startLocationTracking();
+                
+                const hospitals = await searchNearbyHospitals(latitude, longitude);
+                console.log("Found hospitals:", hospitals);
+                hospitalsData = hospitals;
+                
+                displayHospitalList(hospitals);
+                setView('selection');
+                
+            } catch (error) {
+                console.error("Initialization error:", error);
+                alert(`Error: ${error.message}\n\nPlease make sure:\n1. Valid Google Maps API key\n2. Location services enabled\n3. Using HTTP/HTTPS`);
+            }
+        }
+
+        confirmHospitalBtn.addEventListener('click', () => {
+            startJourney();
+        });
+
+        startNavigationBtn.addEventListener('click', () => {
+            journeyStarted = true;
+            startLocationTracking();
+            startNavigationBtn.classList.add('hidden');
+            stopNavigationBtn.classList.remove('hidden');
+            document.getElementById('status-badge').innerHTML = '<i class="fas fa-route"></i> NAVIGATING';
+            document.getElementById('status-badge').className = 'status-badge navigating';
+        });
+
+        stopNavigationBtn.addEventListener('click', () => {
+            journeyStarted = false;
+            stopLocationTracking();
+            stopNavigationBtn.classList.add('hidden');
+            resumeNavigationBtn.classList.remove('hidden');
+            exitNavigationBtn.classList.remove('hidden');
+            document.getElementById('status-badge').innerHTML = '<i class="fas fa-pause-circle"></i> PAUSED';
+            document.getElementById('status-badge').className = 'status-badge';
+        });
+
+        resumeNavigationBtn.addEventListener('click', () => {
+            journeyStarted = true;
+            startLocationTracking();
+            resumeNavigationBtn.classList.add('hidden');
+            exitNavigationBtn.classList.add('hidden');
+            stopNavigationBtn.classList.remove('hidden');
+            document.getElementById('status-badge').innerHTML = '<i class="fas fa-route"></i> NAVIGATING';
+            document.getElementById('status-badge').className = 'status-badge navigating';
+        });
+
+        exitNavigationBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to end this navigation?')) {
+                setView('thanks');
+            }
+        });
+
+        arrivedBtn.addEventListener('click', () => {
+            setView('thanks');
+        });
+
+        standbyBtn.addEventListener('click', () => {
+            window.location.href = 'dashboard.html';
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+
+        window.addEventListener('load', () => {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    pos => {
+                        console.log('✅ Location access granted!');
+                        initialize();
+                    },
+                    err => {
+                        console.error('❌ Location denied:', err);
+                        alert(`Location Error: ${err.message}\n\nPlease enable location services and refresh the page.`);
+                    }
+                );
+            } else {
+                alert('Location services are not available in your browser.');
+            }
+        });
+    </script>
+</body>
+</html>
